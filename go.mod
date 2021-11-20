@@ -1,3 +1,3 @@
-module github.com/mihakyr/gosteam
+module github.com/chickenfresh/gosteam
 
 go 1.16
