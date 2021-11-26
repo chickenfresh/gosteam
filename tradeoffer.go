@@ -57,67 +57,96 @@ var (
 	ErrCannotFindOfferInfo = errors.New("unable to match data from trade offer url")
 )
 
-
-//func (s *session) GetTradeOffer(id uint64) (*TradeOffer, error) {
-//	data := url.Values{
-//		"key":          {s.apiKey},
-//		"tradeofferid": {strconv.FormatUint(id, 10)},
-//	}.Encode()
-//
-//	req := fasthttp.AcquireRequest()
-//	req.Header.SetMethod("GET")
-//	req.SetRequestURI(apiGetTradeOffer)
-//	req.SetBodyString(data)
-//	s.cookieClient.FillRequest(req)
-//	resp := fasthttp.AcquireResponse()
-//
-//	if err := fasthttp.Do(req, resp); err != nil {
-//		return nil, errorText("GetTradeOffer | fasthttp.Do(req, resp)")
-//	}
-//	if resp.StatusCode() != 200 {
-//		return nil, errorStatusCode("GetTradeOffer", resp.StatusCode(), resp.Body())
-//	}
-//
-//	var response APIResponse
-//	if err := json.NewDecoder(bytes.NewReader(resp.Body())).Decode(&response); err != nil {
-//		return nil, errorText("GetTradeOffer | APIResponce - json.NewDecoder")
-//	}
-//
-//	return response.Inner.Offer, nil
-//}
-//
-func testBit(bits uint32, bit uint32) bool {
-	return (bits & bit) == bit
+type GetTradeOffersOption struct {
+	Key   string
+	Value string
 }
 
-func (offers *GetTradeOffers) GetTradeOffers() (*TradeOfferResponse, error) {
+func GetSentOffers() GetTradeOffersOption {
+	return GetTradeOffersOption{
+		Key:   "get_sent_offers",
+		Value: "1",
+	}
+}
+
+func GetReceivedOffers() GetTradeOffersOption {
+	return GetTradeOffersOption{
+		Key:   "get_received_offers",
+		Value: "1",
+	}
+}
+func GetDescriptions() GetTradeOffersOption {
+	return GetTradeOffersOption{
+		Key:   "get_descriptions",
+		Value: "1",
+	}
+}
+func ActiveOnly() GetTradeOffersOption {
+	return GetTradeOffersOption{
+		Key:   "active_only",
+		Value: "1",
+	}
+}
+
+func HistoricalOnly() GetTradeOffersOption {
+	return GetTradeOffersOption{
+		Key:   "historical_only",
+		Value: "1",
+	}
+}
+
+func Language(value string) GetTradeOffersOption {
+	return GetTradeOffersOption{
+		Key:   "language",
+		Value: value,
+	}
+}
+
+func TimeHistoricalCutoff(value uint32) GetTradeOffersOption {
+	return GetTradeOffersOption{
+		Key:   "time_historical_cutoff",
+		Value: fmt.Sprintf("%d", value),
+	}
+}
+
+func (s *session) GetTradeOffer(id uint64) (*TradeOffer, error) {
+	data := url.Values{
+		"key":          {s.apiKey},
+		"tradeofferid": {strconv.FormatUint(id, 10)},
+	}.Encode()
+
+	req := fasthttp.AcquireRequest()
+	req.Header.SetMethod("GET")
+	req.SetRequestURI(apiGetTradeOffer)
+	req.SetBodyString(data)
+	s.cookieClient.FillRequest(req)
+	resp := fasthttp.AcquireResponse()
+
+	if err := s.client.Do(req, resp); err != nil {
+		return nil, errorText("GetTradeOffer | s.client.Do(req, resp)")
+	}
+	if resp.StatusCode() != 200 {
+		return nil, errorStatusCode("GetTradeOffer", resp.StatusCode())
+	}
+
+	var response APIResponse
+	if err := json.NewDecoder(bytes.NewReader(resp.Body())).Decode(&response); err != nil {
+		return nil, errorText("GetTradeOffer | APIResponce - json.NewDecoder")
+	}
+
+	return response.Inner.Offer, nil
+}
+
+func (s *session) GetTradeOffers(options ...GetTradeOffersOption) (*TradeOfferResponse, error) {
 	data := url.Values{}
 
-	if len(offers.Apikey) > 0 {
-		data.Set("key", offers.Apikey)
+	if s.apiKey != "" {
+		data.Set("key", s.apiKey)
 	} else {
 		return nil, errorApiKey
 	}
-	if offers.GetSentOffers == true {
-		data.Set("get_sent_offers", "1")
-	}
-	if offers.GetReceivedOffers == true {
-		data.Set("get_received_offers", "1")
-	}
-	if offers.GetDescriptions == true {
-		data.Set("get_descriptions", "1")
-	}
-	if offers.ActiveOnly == true {
-		data.Set("active_only", "1")
-	}
-	if offers.HistoricalOnly == true {
-		data.Set("historical_only", "1")
-	}
-	if len(offers.Language) != 0 {
-		data.Set("language", offers.Language)
-	}
-	if offers.TimeHistoricalCutoff != 0 {
-		data.Set("time_historical_cutoff", fmt.Sprintf("%d", offers.TimeHistoricalCutoff))
+	for _, option := range options {
+		data.Set(option.Key, option.Value)
 	}
 
 	req := fasthttp.AcquireRequest()
@@ -125,7 +154,7 @@ func (offers *GetTradeOffers) GetTradeOffers() (*TradeOfferResponse, error) {
 	req.SetRequestURI(apiGetTradeOffers + data.Encode())
 	resp := fasthttp.AcquireResponse()
 
-	if err := fasthttp.Do(req, resp); err != nil {
+	if err := s.client.Do(req, resp); err != nil {
 		return nil, err
 	}
 
@@ -223,7 +252,8 @@ type EscrowSteamGuardInfo struct {
 //	}, nil
 //}
 //
-//func (session *Session) SendTradeOffer(offer *TradeOffer, sid SteamID, token string) error {
+// todo
+//func (s *session) SendTradeOffer(offer *TradeOffer, sid SteamID, token string) error {
 //	content := map[string]interface{}{
 //		"newversion": true,
 //		"version":    3,
@@ -248,7 +278,7 @@ type EscrowSteamGuardInfo struct {
 //		http.MethodPost,
 //		"https://steamcommunity.com/tradeoffer/new/send",
 //		strings.NewReader(url.Values{
-//			"sessionid":                 {session.sessionID},
+//			"sessionid":                 {s.sessionID},
 //			"serverid":                  {"1"},
 //			"partner":                   {sid.ToString()},
 //			"tradeoffermessage":         {offer.Message},
@@ -265,7 +295,7 @@ type EscrowSteamGuardInfo struct {
 //	}.Encode())
 //	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 //
-//	resp, err := session.client.Do(req)
+//	resp, err := s.client.Do(req)
 //	if resp != nil {
 //		defer resp.Body.Close()
 //	}
@@ -313,6 +343,7 @@ type EscrowSteamGuardInfo struct {
 //
 //	return nil
 //}
+
 //
 //func (session *Session) GetTradeReceivedItems(receiptID uint64) ([]*InventoryItem, error) {
 //	resp, err := session.client.Get(fmt.Sprintf("https://steamcommunity.com/trade/%d/receipt", receiptID))
@@ -404,6 +435,7 @@ func (s *session) CancelTradeOffer(id uint64) error {
 
 	return nil
 }
+
 //
 //func (session *Session) AcceptTradeOffer(id uint64) error {
 //	tid := strconv.FormatUint(id, 10)

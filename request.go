@@ -8,7 +8,7 @@ import (
 
 func (s *session) getRedirect(req *fasthttp.Request, resp *fasthttp.Response, statuscode int, funcname string) error {
 	for {
-		if err := fasthttp.Do(req, resp); err != nil {
+		if err := s.client.Do(req, resp); err != nil {
 			return errorText(fmt.Sprintf("request error %s", funcname))
 		}
 

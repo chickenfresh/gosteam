@@ -81,7 +81,6 @@ func (s *session) generateLoginCookie() error {
 	req.Header.SetRequestURI(steamLogin)
 	resp := fasthttp.AcquireResponse()
 
-
 	if err := s.getRedirect(req, resp, 200, "generateLoginCookie"); err != nil {
 		return err
 	}
@@ -187,6 +186,7 @@ func (s *session) loginInAccount(response *LoginResponse, accountName, password,
 func NewSessionWithAPIKey(apiKey string) *session {
 	return &session{
 		cookieClient: &cookiejar.CookieJar{},
+		client:       &fasthttp.Client{},
 		apiKey:       apiKey,
 		language:     "english",
 	}

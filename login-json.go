@@ -1,9 +1,13 @@
 package gosteam
 
-import cookiejar "github.com/mihakyr/go-jar"
+import (
+	cookiejar "github.com/mihakyr/go-jar"
+	"github.com/valyala/fasthttp"
+)
 
 type session struct {
 	cookieClient *cookiejar.CookieJar
+	client       *fasthttp.Client
 	oauth        OAuth
 	sessionID    string
 	apiKey       string

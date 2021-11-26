@@ -77,13 +77,13 @@ type EconAction struct {
 }
 
 // https://partner.steamgames.com/doc/webapi/IEconService
-type GetTradeOffers struct {
-	Apikey               string
-	GetSentOffers        bool
-	GetReceivedOffers    bool
-	GetDescriptions      bool
-	ActiveOnly           bool
-	HistoricalOnly       bool
-	Language             string
-	TimeHistoricalCutoff uint32
-}
+//type GetTradeOffers struct {
+//	Apikey               string
+//	GetSentOffers        bool
+//	GetReceivedOffers    bool
+//	GetDescriptions      bool
+//	ActiveOnly           bool
+//	HistoricalOnly       bool
+//	Language             string
+//	TimeHistoricalCutoff uint32
+//}

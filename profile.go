@@ -108,11 +108,12 @@ func (s *session) GetProfileURL() (string, error) {
 //	return nil
 //}
 //
-//func (session *Session) SetProfileInfo(profileURL string, values *map[string][]string) error {
-//	(*values)["sessionID"] = []string{session.sessionID}
+// todo
+//func (s *session) SetProfileInfo(profileURL string, values *map[string][]string) error {
+//	(*values)["sessionID"] = []string{s.sessionID}
 //	(*values)["type"] = []string{"profileSave"}
 //
-//	resp, err := session.client.PostForm(profileURL+"/edit", *values)
+//	resp, err := s.PostForm(profileURL+"/edit", *values)
 //	if resp != nil {
 //		resp.Body.Close()
 //	}
