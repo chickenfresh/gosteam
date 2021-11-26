@@ -76,6 +76,14 @@ type EconAction struct {
 	Name string `json:"name"`
 }
 
+type SendTradeOfferResponse struct {
+	ErrorMessage               string `json:"strError"`
+	ID                         uint64 `json:"tradeofferid,string"`
+	MobileConfirmationRequired bool   `json:"needs_mobile_confirmation"`
+	EmailConfirmationRequired  bool   `json:"needs_email_confirmation"`
+	EmailDomain                string `json:"email_domain"`
+}
+
 // https://partner.steamgames.com/doc/webapi/IEconService
 //type GetTradeOffers struct {
 //	Apikey               string

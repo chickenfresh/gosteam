@@ -169,7 +169,7 @@ func (s *session) GetTradeOffers(options ...GetTradeOffersOption) (*TradeOfferRe
 func (s *session) GetMyTradeToken() (string, error) {
 	req := fasthttp.AcquireRequest()
 	req.Header.SetMethod("GET")
-	req.SetRequestURI(steamTradeoffers)
+	req.SetRequestURI(apiTradeOfferToken)
 	s.cookieClient.FillRequest(req)
 	resp := fasthttp.AcquireResponse()
 
@@ -252,98 +252,89 @@ type EscrowSteamGuardInfo struct {
 //	}, nil
 //}
 //
-// todo
-//func (s *session) SendTradeOffer(offer *TradeOffer, sid SteamID, token string) error {
-//	content := map[string]interface{}{
-//		"newversion": true,
-//		"version":    3,
-//		"me": map[string]interface{}{
-//			"assets":   offer.SendItems,
-//			"currency": make([]struct{}, 0),
-//			"ready":    false,
-//		},
-//		"them": map[string]interface{}{
-//			"assets":   offer.RecvItems,
-//			"currency": make([]struct{}, 0),
-//			"ready":    false,
-//		},
-//	}
-//
-//	contentJSON, err := json.Marshal(content)
-//	if err != nil {
-//		return err
-//	}
-//
-//	req, err := http.NewRequest(
-//		http.MethodPost,
-//		"https://steamcommunity.com/tradeoffer/new/send",
-//		strings.NewReader(url.Values{
-//			"sessionid":                 {s.sessionID},
-//			"serverid":                  {"1"},
-//			"partner":                   {sid.ToString()},
-//			"tradeoffermessage":         {offer.Message},
-//			"json_tradeoffer":           {string(contentJSON)},
-//			"trade_offer_create_params": {"{\"trade_offer_access_token\":\"" + token + "\"}"},
-//		}.Encode()),
-//	)
-//	if err != nil {
-//		return err
-//	}
-//	req.Header.Add("Referer", "https://steamcommunity.com/tradeoffer/new/?"+url.Values{
-//		"partner": {strconv.FormatUint(uint64(sid.GetAccountID()), 10)},
-//		"token":   {token},
-//	}.Encode())
-//	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-//
-//	resp, err := s.client.Do(req)
-//	if resp != nil {
-//		defer resp.Body.Close()
-//	}
-//
-//	if err != nil {
-//		return err
-//	}
-//
-//	type Response struct {
-//		ErrorMessage               string `json:"strError"`
-//		ID                         uint64 `json:"tradeofferid,string"`
-//		MobileConfirmationRequired bool   `json:"needs_mobile_confirmation"`
-//		EmailConfirmationRequired  bool   `json:"needs_email_confirmation"`
-//		EmailDomain                string `json:"email_domain"`
-//	}
-//
-//	var response Response
-//	if err = json.NewDecoder(resp.Body).Decode(&response); err != nil {
-//		return err
-//	}
-//
-//	if len(response.ErrorMessage) != 0 {
-//		return errors.New(response.ErrorMessage)
-//	}
-//
-//	if response.ID == 0 {
-//		return errors.New("no OfferID included")
-//	}
-//
-//	offer.ID = response.ID
-//	offer.Created = time.Now().Unix()
-//	offer.Updated = time.Now().Unix()
-//	offer.Expires = offer.Created + 14*24*60*60
-//	offer.RealTime = false
-//	offer.IsOurOffer = true
-//
-//	// Just test mobile confirmation, email is deprecated
-//	if response.MobileConfirmationRequired {
-//		offer.ConfirmationMethod = TradeConfirmationMobileApp
-//		offer.State = TradeStateCreatedNeedsConfirmation
-//	} else {
-//		// set state to active
-//		offer.State = TradeStateActive
-//	}
-//
-//	return nil
-//}
+//todo
 
+func (s *session) SendTradeOffer(offer *TradeOffer, sid SteamID, token string) (*SendTradeOfferResponse, error) {
+	content := map[string]interface{}{
+		"newversion": true,
+		"version":    3,
+		"me": map[string]interface{}{
+			"assets":   offer.SendItems,
+			"currency": make([]struct{}, 0),
+			"ready":    false,
+		},
+		"them": map[string]interface{}{
+			"assets":   offer.RecvItems,
+			"currency": make([]struct{}, 0),
+			"ready":    false,
+		},
+	}
+
+	contentJSON, err := json.Marshal(content)
+	if err != nil {
+		return nil, err
+	}
+
+	req := fasthttp.AcquireRequest()
+	req.Header.SetMethod("POST")
+	req.Header.SetRequestURI(apiSendTradeOffer)
+	req.SetBodyString(url.Values{
+		"sessionid":                 {s.sessionID},
+		"serverid":                  {"1"},
+		"partner":                   {sid.ToString()},
+		"tradeoffermessage":         {offer.Message},
+		"json_tradeoffer":           {string(contentJSON)},
+		"trade_offer_create_params": {"{\"trade_offer_access_token\":\"" + token + "\"}"},
+	}.Encode())
+	resp := fasthttp.AcquireResponse()
+
+	req.Header.Add("Referer", "https://steamcommunity.com/tradeoffer/new/?"+url.Values{
+		"partner": {strconv.FormatUint(uint64(sid.GetAccountID()), 10)},
+		"token":   {token},
+	}.Encode())
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8")
+
+	if err := s.client.Do(req, resp); err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode() != 200 {
+		return nil, errorStatusCode("SendTradeOffer", resp.StatusCode())
+	}
+
+	var response SendTradeOfferResponse
+	if err := json.NewDecoder(bytes.NewReader(resp.Body())).Decode(&response); err != nil {
+		return nil, errorText("SendTradeOffer | SendTradeOfferResponse - json.NewDecoder")
+	}
+
+	if len(response.ErrorMessage) != 0 {
+		return nil, errors.New(response.ErrorMessage)
+	}
+
+	if response.ID == 0 {
+		return nil, errors.New("no OfferID included")
+	}
+
+	//offer.ID = response.ID
+	//offer.Created = time.Now().Unix()
+	//offer.Updated = time.Now().Unix()
+	//offer.Expires = offer.Created + 14*24*60*60
+	//offer.RealTime = false
+	//offer.IsOurOffer = true
+	//
+	//Just test mobile confirmation, email is deprecated
+	//if response.MobileConfirmationRequired {
+	//	offer.ConfirmationMethod = TradeConfirmationMobileApp
+	//	offer.State = TradeStateCreatedNeedsConfirmation
+	//} else {
+	//	set state to active
+	//offer.State = TradeStateActive
+	//}
+
+	return &response, nil
+}
+
+//
 //
 //func (session *Session) GetTradeReceivedItems(receiptID uint64) ([]*InventoryItem, error) {
 //	resp, err := session.client.Get(fmt.Sprintf("https://steamcommunity.com/trade/%d/receipt", receiptID))
@@ -394,7 +385,7 @@ func (s *session) DeclineTradeOffer(id uint64) error {
 	req.SetBodyString(data)
 	resp := fasthttp.AcquireResponse()
 
-	if err := fasthttp.Do(req, resp); err != nil {
+	if err := s.client.Do(req, resp); err != nil {
 		return errorText("fasthttp.Do(req, resp) | DeclineTradeOffer")
 	}
 	if resp.StatusCode() != 200 {
@@ -421,7 +412,7 @@ func (s *session) CancelTradeOffer(id uint64) error {
 	req.SetBodyString(data)
 	resp := fasthttp.AcquireResponse()
 
-	if err := fasthttp.Do(req, resp); err != nil {
+	if err := s.client.Do(req, resp); err != nil {
 		return errorText("fasthttp.Do(req, resp) | CancelTradeOffer")
 	}
 	if resp.StatusCode() != 200 {
