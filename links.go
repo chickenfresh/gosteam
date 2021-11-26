@@ -6,6 +6,7 @@ const (
 	steamLogout    = steamDefault + "/login/logout/"
 	steamGetRSAkey = steamDefault + "/login/getrsakey/"
 	steamDoLogin   = steamDefault + "/login/dologin/"
+	steamSetAvatar = steamDefault + "/actions/FileUploader"
 
 	// tradeoffer
 	apiSendTradeOffer    = steamDefault + "/tradeoffer/new/send"

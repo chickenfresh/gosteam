@@ -113,12 +113,11 @@ func (s *session) GetTradeOffer(id uint64) (*TradeOffer, error) {
 	data := url.Values{
 		"key":          {s.apiKey},
 		"tradeofferid": {strconv.FormatUint(id, 10)},
-	}.Encode()
+	}
 
 	req := fasthttp.AcquireRequest()
 	req.Header.SetMethod("GET")
-	req.SetRequestURI(apiGetTradeOffer)
-	req.SetBodyString(data)
+	req.SetRequestURI(apiGetTradeOffer + data.Encode())
 	s.cookieClient.FillRequest(req)
 	resp := fasthttp.AcquireResponse()
 
@@ -162,7 +161,6 @@ func (s *session) GetTradeOffers(options ...GetTradeOffersOption) (*TradeOfferRe
 	if err := json.NewDecoder(bytes.NewReader(resp.Body())).Decode(&response); err != nil {
 		return nil, err
 	}
-
 	return response.Inner, nil
 }
 
@@ -252,7 +250,6 @@ type EscrowSteamGuardInfo struct {
 //	}, nil
 //}
 //
-//todo
 
 func (s *session) SendTradeOffer(offer *TradeOffer, sid SteamID, token string) (*SendTradeOfferResponse, error) {
 	content := map[string]interface{}{
