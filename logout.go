@@ -2,10 +2,11 @@ package gosteam
 
 import (
 	"github.com/valyala/fasthttp"
+	"net/http"
 	"net/url"
 )
 
-func (s *session) Logout() ([]byte, error) {
+func (s *session) Logout() error {
 	req := fasthttp.AcquireRequest()
 	req.Header.SetMethod("POST")
 	req.Header.SetRequestURI(steamLogout)
@@ -20,12 +21,12 @@ func (s *session) Logout() ([]byte, error) {
 	req.Header.Set("X-Requested-With", "XMLHttpRequest")
 
 	if err := s.client.Do(req, resp); err != nil {
-		return nil, err
+		return err
 	}
 
-	if resp.StatusCode() != 200 {
-		return nil, errorStatusCode("SendTradeOffer", resp.StatusCode())
+	if resp.StatusCode() != http.StatusFound {
+		return errorStatusCode("Logout", resp.StatusCode())
 	}
 
-	return resp.Body(), nil
+	return nil
 }
