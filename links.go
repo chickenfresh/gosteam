@@ -6,7 +6,9 @@ const (
 	steamLogout    = steamDefault + "/login/logout/"
 	steamGetRSAkey = steamDefault + "/login/getrsakey/"
 	steamDoLogin   = steamDefault + "/login/dologin/"
-	steamSetAvatar = steamDefault + "/actions/FileUploader"
+	steamSetAvatar = steamDefault + "/actions/FileUploader/"
+
+	steamPurchaseHistory = "https://store.steampowered.com/account/history/"
 
 	// tradeoffer
 	apiSendTradeOffer    = steamDefault + "/tradeoffer/new/send"
