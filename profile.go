@@ -2,8 +2,11 @@ package gosteam
 
 import (
 	"errors"
+	"fmt"
 	"github.com/valyala/fasthttp"
 	"log"
+	"net/http"
+	"net/url"
 )
 
 const (
@@ -108,26 +111,74 @@ func (s *session) GetProfileURL() (string, error) {
 //	return nil
 //}
 //
-// todo
-//func (s *session) SetProfileInfo(profileURL string, values *map[string][]string) error {
-//	(*values)["sessionID"] = []string{s.sessionID}
-//	(*values)["type"] = []string{"profileSave"}
-//
-//	resp, err := s.PostForm(profileURL+"/edit", *values)
-//	if resp != nil {
-//		resp.Body.Close()
-//	}
-//
-//	if err != nil {
-//		return err
-//	}
-//
-//	if resp.StatusCode != http.StatusOK {
-//		return fmt.Errorf("http error: %d", resp.StatusCode)
-//	}
-//
-//	return nil
-//}
+
+type ProfileDataOption struct {
+	Key   string
+	Value string
+}
+
+func ProfileName(name string) ProfileDataOption {
+	return ProfileDataOption{
+		Key:   "personaName",
+		Value: name,
+	}
+}
+
+func ProfileCustomURL(customURL string) ProfileDataOption {
+	return ProfileDataOption{
+		Key:   "customURL",
+		Value: customURL,
+	}
+}
+
+func ProfileCountry(country string) ProfileDataOption {
+	return ProfileDataOption{
+		Key:   "country",
+		Value: country,
+	}
+}
+
+func ProfileSummary(summary string) ProfileDataOption {
+	return ProfileDataOption{
+		Key:   "summary",
+		Value: summary,
+	}
+}
+
+var NoDataToUpdate = errors.New("no data for update")
+
+func (s *session) SetProfileInfo(options ...ProfileDataOption) error {
+	if len(options) == 0 {
+		return NoDataToUpdate
+	}
+	data := url.Values{
+		"sessionID": {s.sessionID},
+		"type":      {"profileSave"},
+		"json":      {"1"},
+	}
+	for _, option := range options {
+		data.Set(option.Key, option.Value)
+	}
+	urlString := fmt.Sprintf("https://steamcommunity.com/profiles/%s/edit", s.oauth.SteamID.ToString())
+	req := fasthttp.AcquireRequest()
+	s.cookieClient.FillRequest(req)
+	req.Header.SetMethod("POST")
+	req.Header.SetRequestURI(urlString)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Origin", "https://steamcommunity.com")
+	req.Header.Set("Referer", urlString+"/info")
+	req.SetBodyString(data.Encode())
+	resp := fasthttp.AcquireResponse()
+
+	if err := s.client.Do(req, resp); err != nil {
+		return errorText("fasthttp.Do(req, resp) | SetProfileInfo")
+	}
+	if resp.StatusCode() != http.StatusOK {
+		return fmt.Errorf("http error: %d", resp.StatusCode())
+	}
+	return nil
+}
+
 //
 //func (session *Session) SetProfilePrivacy(profileURL string, commentPrivacy string, privacy uint8) error {
 //	resp, err := session.client.PostForm(profileURL+"/edit/settings", url.Values{
