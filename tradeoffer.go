@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/valyala/fasthttp"
 	"io/ioutil"
+	"net/http"
 	"net/url"
 	"regexp"
 	"strconv"
@@ -55,6 +56,7 @@ var (
 	ErrReceiptMatch        = errors.New("unable to match items in trade receipt")
 	ErrCannotAcceptActive  = errors.New("unable to accept a non-active trade")
 	ErrCannotFindOfferInfo = errors.New("unable to match data from trade offer url")
+	ErrAccessDenied        = errors.New("access is denied")
 )
 
 type GetTradeOffersOption struct {
@@ -156,7 +158,9 @@ func (s *session) GetTradeOffers(options ...GetTradeOffersOption) (*TradeOfferRe
 	if err := s.client.Do(req, resp); err != nil {
 		return nil, err
 	}
-
+	if resp.StatusCode() == http.StatusForbidden {
+		return nil, ErrAccessDenied
+	}
 	var response APIResponse
 	if err := json.NewDecoder(bytes.NewReader(resp.Body())).Decode(&response); err != nil {
 		return nil, err
