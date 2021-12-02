@@ -53,11 +53,29 @@ var (
 	errorMsgExp   = regexp.MustCompile("<div id=\"error_msg\">\\s*([^<]+)\\s*</div>")
 	offerInfoExp  = regexp.MustCompile("token=([a-zA-Z0-9-_]+)")
 
-	ErrReceiptMatch        = errors.New("unable to match items in trade receipt")
-	ErrCannotAcceptActive  = errors.New("unable to accept a non-active trade")
-	ErrCannotFindOfferInfo = errors.New("unable to match data from trade offer url")
-	ErrAccessDenied        = errors.New("access is denied")
+	ErrReceiptMatch         = errors.New("unable to match items in trade receipt")
+	ErrCannotAcceptActive   = errors.New("unable to accept a non-active trade")
+	ErrCannotFindOfferInfo  = errors.New("unable to match data from trade offer url")
+	ErrAccessDenied         = errors.New("access is denied")
+	TradeOfferStateMappings = map[uint8]string{
+		TradeStateNone:                     "none",
+		TradeStateInvalid:                  "invalid",
+		TradeStateActive:                   "active",
+		TradeStateAccepted:                 "accepted",
+		TradeStateCountered:                "countered",
+		TradeStateExpired:                  "expired",
+		TradeStateCanceled:                 "cancelled",
+		TradeStateDeclined:                 "declined",
+		TradeStateInvalidItems:             "invalid_items",
+		TradeStateCreatedNeedsConfirmation: "created_needs_confirmation",
+		TradeStateCanceledByTwoFactor:      "cancelled_by_two_factor",
+		TradeStateInEscrow:                 "in_escrow",
+	}
 )
+
+func (t *TradeOffer) Status() string {
+	return TradeOfferStateMappings[t.State]
+}
 
 type GetTradeOffersOption struct {
 	Key   string
