@@ -427,8 +427,7 @@ func (s *session) CancelTradeOffer(id uint64) error {
 
 	req := fasthttp.AcquireRequest()
 	req.Header.SetMethod("POST")
-	req.Header.SetRequestURI(apiCancelTradeOffer)
-	req.SetBodyString(data)
+	req.Header.SetRequestURI(apiCancelTradeOffer + data)
 	resp := fasthttp.AcquireResponse()
 
 	if err := s.client.Do(req, resp); err != nil {
