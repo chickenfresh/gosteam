@@ -6,10 +6,31 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-func (s *session) getRedirect(req *fasthttp.Request, resp *fasthttp.Response, statuscode int, funcname string) error {
+func (s *Session) doRequest(req *fasthttp.Request, resp *fasthttp.Response) error {
+	if err := s.client.Do(req, resp); err != nil {
+		return wrappedError("steam request fail", err)
+	}
+	if logger != nil {
+		logger.Info("steam request: %s | steam response: %d", req.URI(), resp.StatusCode())
+		logger.Debug("STEAM RQ: %+v", req)
+		logger.Debug("STEAM RS: %+v", resp)
+	}
+	s.takeCookie(resp)
+
+	return nil
+}
+
+func (s *Session) getRedirect(req *fasthttp.Request, resp *fasthttp.Response, statuscode int, funcname string) error {
 	for {
 		if err := s.client.Do(req, resp); err != nil {
+			logger.Error("Error: %v\n", err)
 			return errorText(fmt.Sprintf("request error %s", funcname))
+		}
+
+		if logger != nil {
+			logger.Info("steam request: %s | steam response: %d", req.URI(), resp.StatusCode())
+			logger.Debug("STEAM RQ: %v", req)
+			logger.Debug("STEAM RS: %v", resp)
 		}
 
 		s.takeCookie(resp)
@@ -30,7 +51,7 @@ func (s *session) getRedirect(req *fasthttp.Request, resp *fasthttp.Response, st
 	}
 }
 
-func (s *session) takeCookie(resp *fasthttp.Response) {
+func (s *Session) takeCookie(resp *fasthttp.Response) {
 	resp.Header.VisitAllCookie(func(key, value []byte) {
 		processingcookie := bytes.Split(value, []byte(";"))
 		cookie := bytes.Split(processingcookie[0], []byte("="))

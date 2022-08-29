@@ -81,7 +81,7 @@ type Friend struct {
 	FriendSince  int64  `json:"friend_since"`
 }
 
-func (s *session) GetProfileURL() (string, error) {
+func (s *Session) GetProfileURL() (string, error) {
 	req := fasthttp.AcquireRequest()
 	req.SetRequestURI("https://steamcommunity.com/my")
 	s.cookieClient.FillRequest(req)
@@ -93,24 +93,6 @@ func (s *session) GetProfileURL() (string, error) {
 
 	return string(resp.Header.Peek("Location")), nil
 }
-
-//func (session *Session) SetupProfile(profileURL string) error {
-//	resp, err := session.client.Get(profileURL + "/edit?welcomed=1")
-//	if resp != nil {
-//		resp.Body.Close()
-//	}
-//
-//	if err != nil {
-//		return err
-//	}
-//
-//	if resp.StatusCode != http.StatusOK {
-//		return fmt.Errorf("http error: %d", resp.StatusCode)
-//	}
-//
-//	return nil
-//}
-//
 
 type ProfileDataOption struct {
 	Key   string
@@ -147,7 +129,7 @@ func ProfileSummary(summary string) ProfileDataOption {
 
 var NoDataToUpdate = errors.New("no data for update")
 
-func (s *session) SetProfileInfo(options ...ProfileDataOption) error {
+func (s *Session) SetProfileInfo(options ...ProfileDataOption) error {
 	if len(options) == 0 {
 		return NoDataToUpdate
 	}
@@ -178,174 +160,3 @@ func (s *session) SetProfileInfo(options ...ProfileDataOption) error {
 	}
 	return nil
 }
-
-//
-//func (session *Session) SetProfilePrivacy(profileURL string, commentPrivacy string, privacy uint8) error {
-//	resp, err := session.client.PostForm(profileURL+"/edit/settings", url.Values{
-//		"sessionID":               {session.sessionID},
-//		"type":                    {"profileSettings"},
-//		"commentSetting":          {commentPrivacy},
-//		"privacySetting":          {strconv.FormatUint(uint64(privacy&0x3), 10)},
-//		"inventoryPrivacySetting": {strconv.FormatUint(uint64((privacy>>2)&0x3), 10)},
-//		"inventoryGiftPrivacy":    {strconv.FormatUint(uint64((privacy>>4)&0x3), 10)},
-//	})
-//	if resp != nil {
-//		resp.Body.Close()
-//	}
-//
-//	if err != nil {
-//		return err
-//	}
-//
-//	if resp.StatusCode != http.StatusOK {
-//		return fmt.Errorf("http error: %d", resp.StatusCode)
-//	}
-//
-//	return nil
-//}
-//
-//func (session *Session) GetPlayerSummaries(steamids string) ([]*PlayerSummary, error) {
-//	resp, err := session.client.Get(apiGetPlayerSummaries + url.Values{
-//		"key":      {session.apiKey},
-//		"steamids": {steamids},
-//	}.Encode())
-//	if resp != nil {
-//		defer resp.Body.Close()
-//	}
-//
-//	if err != nil {
-//		return nil, err
-//	}
-//
-//	type Players struct {
-//		Summaries []*PlayerSummary `json:"players"`
-//	}
-//
-//	type Response struct {
-//		Inner Players `json:"response"`
-//	}
-//
-//	var response Response
-//	if err = json.NewDecoder(resp.Body).Decode(&response); err != nil {
-//		return nil, err
-//	}
-//
-//	return response.Inner.Summaries, nil
-//}
-//
-//func (session *Session) GetOwnedGames(sid SteamID, freeGames bool, appInfo bool) (*OwnedGamesResponse, error) {
-//	resp, err := session.client.Get(apiGetOwnedGames + url.Values{
-//		"key":                       {session.apiKey},
-//		"steamid":                   {sid.ToString()},
-//		"format":                    {"json"},
-//		"include_appinfo":           {strconv.FormatBool(appInfo)},
-//		"include_played_free_games": {strconv.FormatBool(freeGames)},
-//	}.Encode())
-//	if resp != nil {
-//		defer resp.Body.Close()
-//	}
-//
-//	if err != nil {
-//		return nil, err
-//	}
-//
-//	type Response struct {
-//		Inner *OwnedGamesResponse `json:"response"`
-//	}
-//
-//	var response Response
-//	if err = json.NewDecoder(resp.Body).Decode(&response); err != nil {
-//		return nil, err
-//	}
-//
-//	return response.Inner, nil
-//}
-//
-//func (session *Session) GetPlayerBans(steamids string) ([]*PlayerBan, error) {
-//	resp, err := session.client.Get(apiGetPlayerBans + url.Values{
-//		"key":      {session.apiKey},
-//		"steamids": {steamids},
-//	}.Encode())
-//	if resp != nil {
-//		defer resp.Body.Close()
-//	}
-//
-//	if err != nil {
-//		return nil, err
-//	}
-//
-//	type Response struct {
-//		Inner []*PlayerBan `json:"players"`
-//	}
-//
-//	var response Response
-//	if err = json.NewDecoder(resp.Body).Decode(&response); err != nil {
-//		return nil, err
-//	}
-//
-//	return response.Inner, nil
-//}
-//
-//func (session *Session) GetFriends(sid SteamID) ([]*Friend, error) {
-//	resp, err := session.client.Get(apiGetPlayerFriends + url.Values{
-//		"key":     {session.apiKey},
-//		"steamid": {sid.ToString()},
-//		"format":  {"json"},
-//	}.Encode())
-//	if resp != nil {
-//		defer resp.Body.Close()
-//	}
-//
-//	if err != nil {
-//		return nil, err
-//	}
-//
-//	type Friends struct {
-//		Friends []*Friend `json:"friends"`
-//	}
-//
-//	type FriendsList struct {
-//		Inner Friends `json:"friendslist"`
-//	}
-//
-//	var friendsList FriendsList
-//	if err = json.NewDecoder(resp.Body).Decode(&friendsList); err != nil {
-//		return nil, err
-//	}
-//
-//	return friendsList.Inner.Friends, nil
-//}
-//
-//func (session *Session) ResolveVanityURL(vanityURL string) (uint64, error) {
-//	resp, err := session.client.Get(apiResolveVanityURL + url.Values{
-//		"key":       {session.apiKey},
-//		"vanityurl": {vanityURL},
-//	}.Encode())
-//	if resp != nil {
-//		defer resp.Body.Close()
-//	}
-//
-//	if err != nil {
-//		return 0, err
-//	}
-//
-//	type VanityData struct {
-//		Success uint32 `json:"success"`
-//		SteamID uint64 `json:"steamid,string"`
-//	}
-//
-//	type Response struct {
-//		Inner VanityData `json:"response"`
-//	}
-//
-//	var response Response
-//	if err = json.NewDecoder(resp.Body).Decode(&response); err != nil {
-//		return 0, err
-//	}
-//
-//	if response.Inner.Success != 1 {
-//		return 0, ErrCannotFindVanityMatch
-//	}
-//
-//	return response.Inner.SteamID, nil
-//}

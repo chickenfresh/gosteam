@@ -2,15 +2,14 @@ package gosteam
 
 import (
 	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/valyala/fasthttp"
 	"io/ioutil"
-	"net/http"
 	"net/url"
 	"regexp"
 	"strconv"
+	"strings"
 )
 
 const (
@@ -129,7 +128,37 @@ func TimeHistoricalCutoff(value uint32) GetTradeOffersOption {
 	}
 }
 
-func (s *session) GetTradeOffer(id uint64) (*TradeOffer, error) {
+func (s *Session) GetTradeStatus(id int) ([]byte, error) {
+	data := url.Values{
+		"key":              {s.apiKey},
+		"tradeid":          {strconv.Itoa(id)},
+		"get_descriptions": {"0"},
+	}
+
+	req := fasthttp.AcquireRequest()
+	req.Header.SetMethod("GET")
+	req.SetRequestURI(apiTradeStatus + data.Encode())
+	s.cookieClient.FillRequest(req)
+	resp := fasthttp.AcquireResponse()
+
+	if err := s.doRequest(req, resp); err != nil {
+		return nil, wrappedError("GetTradeStatus | s.doRequest(req, resp)", err)
+	}
+	//if resp.StatusCode() != 200 {
+	//	return nil, errorStatusCode("GetTradeStatus", resp.StatusCode())
+	//}
+	//
+	//var response APIResponse
+	//if err := json.NewDecoder(bytes.NewReader(resp.Body())).Decode(&response); err != nil {
+	//	return nil, errorText("GetTradeStatus | APIResponce - json.NewDecoder")
+	//}
+	//
+	//return response.Inner.Offer, nil
+
+	return resp.Body(), nil
+}
+
+func (s *Session) GetTradeOffer(id uint64) ([]byte, error) {
 	data := url.Values{
 		"key":          {s.apiKey},
 		"tradeofferid": {strconv.FormatUint(id, 10)},
@@ -141,22 +170,24 @@ func (s *session) GetTradeOffer(id uint64) (*TradeOffer, error) {
 	s.cookieClient.FillRequest(req)
 	resp := fasthttp.AcquireResponse()
 
-	if err := s.client.Do(req, resp); err != nil {
-		return nil, errorText("GetTradeOffer | s.client.Do(req, resp)")
-	}
-	if resp.StatusCode() != 200 {
-		return nil, errorStatusCode("GetTradeOffer", resp.StatusCode())
+	if err := s.doRequest(req, resp); err != nil {
+		return nil, wrappedError("GetTradeOffer | s.doRequest(req, resp)", err)
 	}
 
-	var response APIResponse
-	if err := json.NewDecoder(bytes.NewReader(resp.Body())).Decode(&response); err != nil {
-		return nil, errorText("GetTradeOffer | APIResponce - json.NewDecoder")
-	}
-
-	return response.Inner.Offer, nil
+	//if resp.StatusCode() != 200 {
+	//	return nil, errorStatusCode("GetTradeOffer", resp.StatusCode())
+	//}
+	//
+	//var response APIResponse
+	//if err := json.NewDecoder(bytes.NewReader(resp.Body())).Decode(&response); err != nil {
+	//	return nil, errorText("GetTradeOffer | APIResponse - json.NewDecoder")
+	//}
+	//
+	//return response.Inner.Offer, nil
+	return resp.Body(), nil
 }
 
-func (s *session) GetTradeOffers(options ...GetTradeOffersOption) (*TradeOfferResponse, error) {
+func (s *Session) GetTradeOffers(options ...GetTradeOffersOption) ([]byte, error) {
 	data := url.Values{}
 
 	if s.apiKey != "" {
@@ -173,20 +204,21 @@ func (s *session) GetTradeOffers(options ...GetTradeOffersOption) (*TradeOfferRe
 	req.SetRequestURI(apiGetTradeOffers + data.Encode())
 	resp := fasthttp.AcquireResponse()
 
-	if err := s.client.Do(req, resp); err != nil {
-		return nil, err
+	if err := s.doRequest(req, resp); err != nil {
+		return nil, wrappedError("GetTradeOffers | s.doRequest(req, resp)", err)
 	}
-	if resp.StatusCode() == http.StatusForbidden {
-		return nil, ErrAccessDenied
-	}
-	var response APIResponse
-	if err := json.NewDecoder(bytes.NewReader(resp.Body())).Decode(&response); err != nil {
-		return nil, err
-	}
-	return response.Inner, nil
+	//if resp.StatusCode() == http.StatusForbidden {
+	//	return nil, ErrAccessDenied
+	//}
+	//var response APIResponse
+	//if err := json.NewDecoder(bytes.NewReader(resp.Body())).Decode(&response); err != nil {
+	//	return nil, err
+	//}
+	//return response.Inner, nil
+	return resp.Body(), nil
 }
 
-func (s *session) GetMyTradeToken() (string, error) {
+func (s *Session) GetMyTradeToken() (string, error) {
 	req := fasthttp.AcquireRequest()
 	req.Header.SetMethod("GET")
 	req.SetRequestURI(apiTradeOfferToken)
@@ -210,189 +242,54 @@ func (s *session) GetMyTradeToken() (string, error) {
 	return m[1], nil
 }
 
-type EscrowSteamGuardInfo struct {
-	MyDays   int64
-	ThemDays int64
-	ErrorMsg string
-}
-
-//func (session *Session) GetEscrowGuardInfo(sid SteamID, token string) (*EscrowSteamGuardInfo, error) {
-//	return session.GetEscrow("https://steamcommunity.com/tradeoffer/new/?" + url.Values{
-//		"partner": {strconv.FormatUint(uint64(sid.GetAccountID()), 10)},
-//		"token":   {token},
-//	}.Encode())
-//}
-//
-//func (session *Session) GetEscrowGuardInfoForTrade(offerID uint64) (*EscrowSteamGuardInfo, error) {
-//	return session.GetEscrow("https://steamcommunity.com/tradeoffer/" + strconv.FormatUint(offerID, 10))
-//}
-//
-//func (session *Session) GetEscrow(url string) (*EscrowSteamGuardInfo, error) {
-//	resp, err := session.client.Get(url)
-//	if resp != nil {
-//		defer resp.Body.Close()
-//	}
-//
-//	if err != nil {
-//		return nil, err
-//	}
-//
-//	if resp.StatusCode != http.StatusOK {
-//		return nil, fmt.Errorf("http error: %d", resp.StatusCode)
-//	}
-//
-//	body, err := ioutil.ReadAll(resp.Body)
-//	if err != nil {
-//		return nil, err
-//	}
-//
-//	var my int64
-//	var them int64
-//	var errMsg string
-//
-//	m := myEscrowExp.FindStringSubmatch(string(body))
-//	if len(m) == 2 {
-//		my, _ = strconv.ParseInt(m[1], 10, 32)
-//	}
-//
-//	m = themEscrowExp.FindStringSubmatch(string(body))
-//	if len(m) == 2 {
-//		them, _ = strconv.ParseInt(m[1], 10, 32)
-//	}
-//
-//	m = errorMsgExp.FindStringSubmatch(string(body))
-//	if len(m) == 2 {
-//		errMsg = m[1]
-//	}
-//
-//	return &EscrowSteamGuardInfo{
-//		MyDays:   my,
-//		ThemDays: them,
-//		ErrorMsg: errMsg,
-//	}, nil
-//}
-//
-
-func (s *session) SendTradeOffer(offer *TradeOffer, sid SteamID, token string) (*SendTradeOfferResponse, error) {
-	content := map[string]interface{}{
-		"newversion": true,
-		"version":    3,
-		"me": map[string]interface{}{
-			"assets":   offer.SendItems,
-			"currency": make([]struct{}, 0),
-			"ready":    false,
-		},
-		"them": map[string]interface{}{
-			"assets":   offer.RecvItems,
-			"currency": make([]struct{}, 0),
-			"ready":    false,
-		},
-	}
-
-	contentJSON, err := json.Marshal(content)
-	if err != nil {
-		return nil, err
-	}
+func (s *Session) SendTradeOffer(tradeOfferJSON, message, tradeLink, steamId string) ([]byte, error) {
+	// https://steamcommunity.com/tradeoffer/new/?partner=472082445&token=wb7wG5LI
+	token := strings.Split(tradeLink, "token=")[1]
 
 	req := fasthttp.AcquireRequest()
+
 	req.Header.SetMethod("POST")
 	req.Header.SetRequestURI(apiSendTradeOffer)
+	req.Header.SetReferer(tradeLink)
+	s.enrichWithDefaultHeaders(req)
 	req.SetBodyString(url.Values{
 		"sessionid":                 {s.sessionID},
 		"serverid":                  {"1"},
-		"partner":                   {sid.ToString()},
-		"tradeoffermessage":         {offer.Message},
-		"json_tradeoffer":           {string(contentJSON)},
+		"partner":                   {steamId},
+		"tradeoffermessage":         {message},
+		"json_tradeoffer":           {tradeOfferJSON},
 		"trade_offer_create_params": {"{\"trade_offer_access_token\":\"" + token + "\"}"},
 	}.Encode())
+
 	resp := fasthttp.AcquireResponse()
 
-	req.Header.Add("Referer", "https://steamcommunity.com/tradeoffer/new/?"+url.Values{
-		"partner": {strconv.FormatUint(uint64(sid.GetAccountID()), 10)},
-		"token":   {token},
-	}.Encode())
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8")
-
-	if err := s.client.Do(req, resp); err != nil {
-		return nil, err
+	if err := s.doRequest(req, resp); err != nil {
+		return nil, wrappedError("SendTradeOffer | s.doRequest(req, resp)", err)
 	}
 
-	if resp.StatusCode() != 200 {
-		return nil, errorStatusCode("SendTradeOffer", resp.StatusCode())
-	}
+	return resp.Body(), nil
 
-	var response SendTradeOfferResponse
-	if err := json.NewDecoder(bytes.NewReader(resp.Body())).Decode(&response); err != nil {
-		return nil, errorText("SendTradeOffer | SendTradeOfferResponse - json.NewDecoder")
-	}
-
-	if len(response.ErrorMessage) != 0 {
-		return nil, errors.New(response.ErrorMessage)
-	}
-
-	if response.ID == 0 {
-		return nil, errors.New("no OfferID included")
-	}
-
-	//offer.ID = response.ID
-	//offer.Created = time.Now().Unix()
-	//offer.Updated = time.Now().Unix()
-	//offer.Expires = offer.Created + 14*24*60*60
-	//offer.RealTime = false
-	//offer.IsOurOffer = true
-	//
-	//Just test mobile confirmation, email is deprecated
-	//if response.MobileConfirmationRequired {
-	//	offer.ConfirmationMethod = TradeConfirmationMobileApp
-	//	offer.State = TradeStateCreatedNeedsConfirmation
-	//} else {
-	//	set state to active
-	//offer.State = TradeStateActive
+	//if resp.StatusCode() != 200 {
+	//	return nil, errorStatusCode("SendTradeOffer", resp.StatusCode())
 	//}
-
-	return &response, nil
+	//
+	//var response SendTradeOfferResponse
+	//if err := json.NewDecoder(bytes.NewReader(resp.Body())).Decode(&response); err != nil {
+	//	return nil, errorText("SendTradeOffer | SendTradeOfferResponse - json.NewDecoder")
+	//}
+	//
+	//if len(response.ErrorMessage) != 0 {
+	//	return nil, errors.New(response.ErrorMessage)
+	//}
+	//
+	//if response.ID == 0 {
+	//	return nil, errors.New("no OfferID included")
+	//}
+	//
+	//return &response, nil
 }
 
-//
-//
-//func (session *Session) GetTradeReceivedItems(receiptID uint64) ([]*InventoryItem, error) {
-//	resp, err := session.client.Get(fmt.Sprintf("https://steamcommunity.com/trade/%d/receipt", receiptID))
-//	if resp != nil {
-//		defer resp.Body.Close()
-//	}
-//
-//	if err != nil {
-//		return nil, err
-//	}
-//
-//	if resp.StatusCode != http.StatusOK {
-//		return nil, fmt.Errorf("http error: %d", resp.StatusCode)
-//	}
-//
-//	body, err := ioutil.ReadAll(resp.Body)
-//	if err != nil {
-//		return nil, err
-//	}
-//
-//	m := receiptExp.FindAllSubmatch(body, -1)
-//	if m == nil {
-//		return nil, ErrReceiptMatch
-//	}
-//
-//	items := make([]*InventoryItem, len(m))
-//	for k := range m {
-//		item := &InventoryItem{}
-//		if err = json.Unmarshal(m[k][1], item); err != nil {
-//			return nil, err
-//		}
-//
-//		items[k] = item
-//	}
-//
-//	return items, nil
-//}
-//
-func (s *session) DeclineTradeOffer(id uint64) error {
+func (s *Session) DeclineTradeOffer(id uint64) error {
 	data := url.Values{
 		"key":          {s.apiKey},
 		"tradeofferid": {strconv.FormatUint(id, 10)},
@@ -419,94 +316,21 @@ func (s *session) DeclineTradeOffer(id uint64) error {
 	return nil
 }
 
-func (s *session) CancelTradeOffer(id uint64) error {
-	data := url.Values{
-		"key":          {s.apiKey},
-		"tradeofferid": {strconv.FormatUint(id, 10)},
-	}.Encode()
-
+func (s *Session) CancelTradeOffer(id uint64) ([]byte, error) {
 	req := fasthttp.AcquireRequest()
+
 	req.Header.SetMethod("POST")
-	req.Header.SetRequestURI(apiCancelTradeOffer + data)
+	req.Header.SetRequestURI(fmt.Sprintf(apiCancelTradeOfferTempl, id))
+	s.enrichWithDefaultHeaders(req)
+	req.SetBodyString(url.Values{
+		"sessionid": {s.sessionID},
+	}.Encode())
+
 	resp := fasthttp.AcquireResponse()
 
-	if err := s.client.Do(req, resp); err != nil {
-		return errorText("fasthttp.Do(req, resp) | CancelTradeOffer")
-	}
-	if resp.StatusCode() != 200 {
-		return errorStatusCode("CancelTradeOffer", resp.StatusCode())
+	if err := s.doRequest(req, resp); err != nil {
+		return nil, wrappedError("CancelTradeOffer | doRequest(req, resp)", err)
 	}
 
-	result := string(resp.Header.Peek("x-eresult"))
-	if result != "1" {
-		return fmt.Errorf("cannot cancel trade: %s", result)
-	}
-
-	return nil
+	return resp.Body(), nil
 }
-
-//
-//func (session *Session) AcceptTradeOffer(id uint64) error {
-//	tid := strconv.FormatUint(id, 10)
-//	postURL := "https://steamcommunity.com/tradeoffer/" + tid
-//
-//	req, err := http.NewRequest(
-//		http.MethodPost,
-//		postURL+"/accept",
-//		strings.NewReader(url.Values{
-//			"sessionid":    {session.sessionID},
-//			"serverid":     {"1"},
-//			"tradeofferid": {tid},
-//		}.Encode()),
-//	)
-//	if err != nil {
-//		return err
-//	}
-//
-//	req.Header.Add("Referer", postURL)
-//	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-//
-//	resp, err := session.client.Do(req)
-//	if resp != nil {
-//		defer resp.Body.Close()
-//	}
-//
-//	if err != nil {
-//		return err
-//	}
-//
-//	if resp.StatusCode != http.StatusOK {
-//		return fmt.Errorf("http error: %d", resp.StatusCode)
-//	}
-//
-//	type Response struct {
-//		ErrorMessage string `json:"strError"`
-//	}
-//
-//	var response Response
-//	if err = json.NewDecoder(resp.Body).Decode(&response); err != nil {
-//		return err
-//	}
-//
-//	if len(response.ErrorMessage) != 0 {
-//		return errors.New(response.ErrorMessage)
-//	}
-//
-//	return nil
-//}
-//
-//func (offer *TradeOffer) Send(session *Session, sid SteamID, token string) error {
-//	return session.SendTradeOffer(offer, sid, token)
-//}
-//
-//func (offer *TradeOffer) Accept(session *Session) error {
-//	return session.AcceptTradeOffer(offer.ID)
-//}
-//
-//func (offer *TradeOffer) Cancel(session *Session) error {
-//	if offer.IsOurOffer {
-//		return session.CancelTradeOffer(offer.ID)
-//	}
-//
-//	return session.DeclineTradeOffer(offer.ID)
-//}

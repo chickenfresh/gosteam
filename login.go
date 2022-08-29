@@ -18,7 +18,11 @@ import (
 	"time"
 )
 
-func (s *session) Login(accountName, password, sharedSecret string) error {
+const (
+	badCredentials = "The account name or password that you have entered is incorrect"
+)
+
+func (s *Session) Login(accountName, password, sharedSecret string) error {
 	err := s.generateLoginCookie()
 	if err != nil {
 		return err
@@ -37,13 +41,14 @@ func (s *session) Login(accountName, password, sharedSecret string) error {
 	return s.loginInAccount(response, accountName, password, twoFactorCode)
 }
 
-func (s *session) generateRSAkey(username string) (*LoginResponse, error) {
+func (s *Session) generateRSAkey(username string) (*LoginResponse, error) {
 	data := url.Values{
 		"username":   {username},
 		"donotcache": {strconv.FormatInt(time.Now().Unix()*1000, 10)},
 	}.Encode()
 
 	req := fasthttp.AcquireRequest()
+
 	req.SetBodyString(data)
 	req.Header.SetMethod("POST")
 	req.Header.SetRequestURI(steamGetRSAkey)
@@ -64,23 +69,24 @@ func (s *session) generateRSAkey(username string) (*LoginResponse, error) {
 
 	var response LoginResponse
 	if err := json.NewDecoder(bytes.NewReader(resp.Body())).Decode(&response); err != nil {
-		return nil, errorText("generateRSAkey | LoginResponse-json.NewDecoder")
+		return nil, wrappedError("generateRSAkey | LoginResponse-json.NewDecoder", err)
 	}
 
 	if !response.Success {
-		return nil, errorRSA
+		return nil, ErrRSA
 	}
 
 	return &response, nil
 }
 
 // start login, setup cookie
-func (s *session) generateLoginCookie() error {
+func (s *Session) generateLoginCookie() error {
 	req := fasthttp.AcquireRequest()
 	req.Header.SetMethod("GET")
 	req.Header.SetRequestURI(steamLogin)
 	resp := fasthttp.AcquireResponse()
 
+	// TODO: with retry && error handling
 	if err := s.getRedirect(req, resp, 200, "generateLoginCookie"); err != nil {
 		return err
 	}
@@ -95,7 +101,7 @@ func (s *session) generateLoginCookie() error {
 	return nil
 }
 
-func (s *session) loginInAccount(response *LoginResponse, accountName, password, twoFactorCode string) error {
+func (s *Session) loginInAccount(response *LoginResponse, accountName, password, twoFactorCode string) error {
 	var n big.Int
 	n.SetString(response.PublicKeyMod, 16)
 
@@ -112,22 +118,6 @@ func (s *session) loginInAccount(response *LoginResponse, accountName, password,
 
 	req := fasthttp.AcquireRequest()
 
-	req.SetBodyString(url.Values{
-		"captcha_text":      {""},
-		"captchagid":        {"-1"},
-		"emailauth":         {""},
-		"emailsteamid":      {""},
-		"username":          {accountName},
-		"password":          {base64.StdEncoding.EncodeToString(rsaOut)},
-		"remember_login":    {"true"},
-		"rsatimestamp":      {response.Timestamp},
-		"twofactorcode":     {twoFactorCode},
-		"donotcache":        {strconv.FormatInt(time.Now().Unix()*1000, 10)},
-		"loginfriendlyname": {""},
-		"oauth_client_id":   {"DE45CD61"},
-		"oauth_scope":       {"read_profile write_profile read_client write_client"},
-	}.Encode())
-
 	req.SetRequestURI(steamDoLogin)
 	req.Header.SetMethod("POST")
 	req.Header.SetUserAgent("Mozilla/5.0")
@@ -137,6 +127,22 @@ func (s *session) loginInAccount(response *LoginResponse, accountName, password,
 	req.Header.Set("X-Requested-With", "com.valvesoftware.android.gosteam.community")
 	req.Header.Set("Origin", steamDefault)
 	s.cookieClient.FillRequest(req)
+	req.SetBodyString(url.Values{
+		"captcha_text":      {s.captchaText},
+		"captchagid":        {s.captchaGid},
+		"emailauth":         {""},
+		"emailsteamid":      {""},
+		"username":          {accountName},
+		"password":          {base64.StdEncoding.EncodeToString(rsaOut)},
+		"remember_login":    {"false"},
+		"rsatimestamp":      {response.Timestamp},
+		"twofactorcode":     {twoFactorCode},
+		"donotcache":        {strconv.FormatInt(time.Now().Unix()*1000, 10)},
+		"loginfriendlyname": {""},
+		"oauth_client_id":   {"DE45CD61"},
+		"oauth_scope":       {"read_profile write_profile read_client write_client"},
+	}.Encode())
+
 	resp := fasthttp.AcquireResponse()
 
 	if err = s.getRedirect(req, resp, 200, "loginInAccount"); err != nil {
@@ -148,11 +154,22 @@ func (s *session) loginInAccount(response *LoginResponse, accountName, password,
 		return errorText("loginInAccount | loginSession-json.NewDecoder")
 	}
 	if !loginSession.Success {
-		if loginSession.RequiresTwoFactor {
-			return errorNeedTwoFactor
+		if logger != nil {
+			logger.Error("login failed: %s", loginSession.Message)
 		}
-
-		return errorStatusCode("loginInAccount", 200)
+		switch {
+		case strings.Contains(loginSession.Message, badCredentials):
+			return ErrBadCredentials
+		case loginSession.CaptchaNeeded:
+			return newCaptchaNeededError(loginSession.CaptchaGid)
+		case loginSession.EmailNeeded:
+			return ErrNoAuthenticator
+		case !loginSession.LoginComplete:
+			return ErrBadCredentials
+		case loginSession.RequiresTwoFactor:
+			return ErrNeedTwoFactor
+		}
+		return errorText("dologin unknown error")
 	}
 
 	var oauthSession OAuth
@@ -168,6 +185,7 @@ func (s *session) loginInAccount(response *LoginResponse, accountName, password,
 	sessionID := make([]byte, hex.EncodedLen(len(randomBytes)))
 	hex.Encode(sessionID, randomBytes)
 
+	// Why Del?
 	for name := range *s.cookieClient {
 		if name == "mobileClient" || name == "mobileClientVersion" || name == "steamCountry" || strings.Contains(name, "steamMachineAuth") {
 			s.cookieClient.Del(name)
@@ -183,11 +201,57 @@ func (s *session) loginInAccount(response *LoginResponse, accountName, password,
 	return nil
 }
 
-func NewSessionWithAPIKey(apiKey string) *session {
-	return &session{
+func NewSessionWithAPIKey(apiKey string) *Session {
+	return &Session{
 		cookieClient: &cookiejar.CookieJar{},
 		client:       &fasthttp.Client{},
 		apiKey:       apiKey,
 		language:     "english",
+		captchaGid:   "-1",
 	}
+}
+
+func FromCache(apiKey, deviceId, sessionId string, oauth OAuth, cookies map[string]string) *Session {
+	cj := &cookiejar.CookieJar{}
+	for k, v := range cookies {
+		cj.Set(k, v)
+	}
+	return &Session{
+		cookieClient: cj,
+		client:       &fasthttp.Client{},
+		apiKey:       apiKey,
+		oauth:        oauth,
+		deviceID:     deviceId,
+		sessionID:    sessionId,
+	}
+}
+
+func (s *Session) OAuth() OAuth {
+	return s.oauth
+}
+
+func (s *Session) DeviceId() string {
+	return s.deviceID
+}
+
+func (s *Session) SessionId() string {
+	return s.sessionID
+}
+
+func (s *Session) Cookies() map[string]string {
+	cookies := make(map[string]string)
+	if s.cookieClient != nil {
+		for _, cookie := range *s.cookieClient {
+			cookies[string(cookie.Key())] = string(cookie.Value())
+		}
+	}
+	return cookies
+}
+
+func (s *Session) SetCaptchaText(text string) {
+	s.captchaText = text
+}
+
+func (s *Session) SetCaptchaGid(gid string) {
+	s.captchaGid = gid
 }

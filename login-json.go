@@ -5,7 +5,7 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-type session struct {
+type Session struct {
 	cookieClient *cookiejar.CookieJar
 	client       *fasthttp.Client
 	oauth        OAuth
@@ -14,6 +14,8 @@ type session struct {
 	deviceID     string
 	umqID        string
 	chatMessage  int
+	captchaGid   string
+	captchaText  string
 	language     string
 }
 
@@ -29,6 +31,9 @@ type LoginSession struct {
 	Success           bool   `json:"success"`
 	LoginComplete     bool   `json:"login_complete"`
 	RequiresTwoFactor bool   `json:"requires_twofactor"`
+	EmailNeeded       bool   `json:"emailauth_needed"`
+	CaptchaNeeded     bool   `json:"captcha_needed"`
+	CaptchaGid        string `json:"captcha_gid"`
 	Message           string `json:"message"`
 	RedirectURI       string `json:"redirect_uri"`
 	OAuthInfo         string `json:"oauth"`

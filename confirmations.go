@@ -2,7 +2,6 @@ package gosteam
 
 import (
 	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/PuerkitoBio/goquery"
@@ -21,6 +20,11 @@ type Confirmation struct {
 	OfferID   uint64
 }
 
+type Response struct {
+	Success bool   `json:"success"`
+	Message string `json:"message"`
+}
+
 var (
 	//ErrConfirmationsUnknownError = errors.New("unknown error occurred finding confirmation")
 	ErrCannotFindConfirmations   = errors.New("unable to find confirmation")
@@ -29,7 +33,7 @@ var (
 	ErrWGTokenExpired            = errors.New("WGToken expired")
 )
 
-func (s *session) execConfirmationRequest(request, key, tag string, current int64, values map[string]interface{}) (*fasthttp.Response, error) {
+func (s *Session) execConfirmationRequest(request, key, tag string, current int64, values map[string]interface{}) (*fasthttp.Response, error) {
 	params := url.Values{
 		"p":   {s.deviceID},
 		"a":   {s.oauth.SteamID.ToString()},
@@ -61,7 +65,7 @@ func (s *session) execConfirmationRequest(request, key, tag string, current int6
 	return resp, nil
 }
 
-func (s *session) GetConfirmations(identitySecret string) ([]*Confirmation, error) {
+func (s *Session) GetConfirmationsBody(identitySecret string) ([]byte, error) {
 	current := time.Now().Unix()
 
 	key, err := GenerateConfirmationCode(identitySecret, "conf", current)
@@ -74,7 +78,16 @@ func (s *session) GetConfirmations(identitySecret string) ([]*Confirmation, erro
 		return nil, err
 	}
 
-	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(resp.Body()))
+	return resp.Body(), nil
+}
+
+func (s *Session) GetConfirmations(identitySecret string) ([]*Confirmation, error) {
+	body, err := s.GetConfirmationsBody(identitySecret)
+	if err != nil {
+		return nil, err
+	}
+
+	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(body))
 	if err != nil {
 		return nil, err
 	}
@@ -138,13 +151,13 @@ func (s *session) GetConfirmations(identitySecret string) ([]*Confirmation, erro
 	return confirmations, nil
 }
 
-func (s *session) AnswerConfirmation(confirmation *Confirmation, identitySecret string) error {
+func (s *Session) AnswerConfirmation(confirmation *Confirmation, identitySecret string) ([]byte, error) {
 	current := time.Now().Unix()
 	answer := "allow"
 
 	key, err := GenerateConfirmationCode(identitySecret, answer, current)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	op := map[string]interface{}{
@@ -154,24 +167,9 @@ func (s *session) AnswerConfirmation(confirmation *Confirmation, identitySecret 
 	}
 
 	resp, err := s.execConfirmationRequest("ajaxop?", key, answer, current, op)
-
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	type Response struct {
-		Success bool   `json:"success"`
-		Message string `json:"message"`
-	}
-
-	var response Response
-	if err := json.NewDecoder(bytes.NewReader(resp.Body())).Decode(&response); err != nil {
-		return err
-	}
-
-	if !response.Success {
-		return errors.New(response.Message)
-	}
-
-	return nil
+	return resp.Body(), nil
 }

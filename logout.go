@@ -6,7 +6,7 @@ import (
 	"net/url"
 )
 
-func (s *session) Logout() error {
+func (s *Session) Logout() error {
 	req := fasthttp.AcquireRequest()
 	req.Header.SetMethod("POST")
 	req.Header.SetRequestURI(steamLogout)
