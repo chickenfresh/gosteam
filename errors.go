@@ -6,10 +6,29 @@ import (
 )
 
 var (
-	errorRSA           = errors.New("error generate rsakey")
-	errorNeedTwoFactor = errors.New("invalid twofactor code")
-	errorApiKey        = errors.New("invalid apikey")
+	ErrRSA             = errors.New("error generate rsakey")
+	ErrBadCredentials  = errors.New("bad credentials")
+	ErrNoAuthenticator = errors.New("account doesn't have authenticator")
+	ErrNeedTwoFactor   = errors.New("invalid twofactor code")
+
+	errorApiKey = errors.New("invalid apikey")
 )
+
+type CaptchaNeededError struct {
+	Err        error
+	CaptchaGid string
+}
+
+func (err CaptchaNeededError) Error() string {
+	return err.Err.Error()
+}
+
+func newCaptchaNeededError(captchaGid string) CaptchaNeededError {
+	return CaptchaNeededError{
+		Err:        errors.New("need to solve captcha"),
+		CaptchaGid: captchaGid,
+	}
+}
 
 func errorStatusCode(functionname string, statuscode int) error {
 	return errors.New(fmt.Sprintf("%s | %d", functionname, statuscode))
@@ -17,4 +36,8 @@ func errorStatusCode(functionname string, statuscode int) error {
 
 func errorText(text string) error {
 	return errors.New(text)
+}
+
+func wrappedError(text string, err error) error {
+	return fmt.Errorf("%s: %w", text, err)
 }

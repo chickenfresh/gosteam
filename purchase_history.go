@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-func (s *session) GetPurchaseHistory() ([]Purchase, error) {
+func (s *Session) GetPurchaseHistory() ([]Purchase, error) {
 	req := fasthttp.AcquireRequest()
 	req.Header.SetMethod("GET")
 	req.SetRequestURI(steamPurchaseHistory)
