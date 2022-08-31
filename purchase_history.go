@@ -33,7 +33,7 @@ func (s *Session) GetPurchaseHistory() ([]Purchase, error) {
 	s.cookieClient.FillRequest(req)
 	resp := fasthttp.AcquireResponse()
 
-	if err := s.getRedirect(req, resp, 200, "GetPurchaseHistory"); err != nil {
+	if err := s.doRequest(req, resp); err != nil {
 		return nil, err
 	}
 	reader := &bytes.Buffer{}

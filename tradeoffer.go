@@ -155,7 +155,7 @@ func (s *Session) GetTradeStatus(id int) ([]byte, error) {
 	//
 	//return response.Inner.Offer, nil
 
-	return resp.Body(), nil
+	return plainTextBody(resp), nil
 }
 
 func (s *Session) GetTradeOffer(id uint64) ([]byte, error) {
@@ -184,7 +184,7 @@ func (s *Session) GetTradeOffer(id uint64) ([]byte, error) {
 	//}
 	//
 	//return response.Inner.Offer, nil
-	return resp.Body(), nil
+	return plainTextBody(resp), nil
 }
 
 func (s *Session) GetTradeOffers(options ...GetTradeOffersOption) ([]byte, error) {
@@ -215,7 +215,7 @@ func (s *Session) GetTradeOffers(options ...GetTradeOffersOption) ([]byte, error
 	//	return nil, err
 	//}
 	//return response.Inner, nil
-	return resp.Body(), nil
+	return plainTextBody(resp), nil
 }
 
 func (s *Session) GetMyTradeToken() (string, error) {
@@ -225,7 +225,7 @@ func (s *Session) GetMyTradeToken() (string, error) {
 	s.cookieClient.FillRequest(req)
 	resp := fasthttp.AcquireResponse()
 
-	if err := s.getRedirect(req, resp, 200, "GetMyTradeToken"); err != nil {
+	if err := s.doRequest(req, resp); err != nil {
 		return "", err
 	}
 
@@ -264,10 +264,10 @@ func (s *Session) SendTradeOffer(tradeOfferJSON, message, tradeLink, steamId str
 	resp := fasthttp.AcquireResponse()
 
 	if err := s.doRequest(req, resp); err != nil {
-		return nil, wrappedError("SendTradeOffer | s.doRequest(req, resp)", err)
+		return nil, err
 	}
 
-	return resp.Body(), nil
+	return plainTextBody(resp), nil
 
 	//if resp.StatusCode() != 200 {
 	//	return nil, errorStatusCode("SendTradeOffer", resp.StatusCode())
@@ -329,8 +329,8 @@ func (s *Session) CancelTradeOffer(id uint64) ([]byte, error) {
 	resp := fasthttp.AcquireResponse()
 
 	if err := s.doRequest(req, resp); err != nil {
-		return nil, wrappedError("CancelTradeOffer | doRequest(req, resp)", err)
+		return nil, err
 	}
 
-	return resp.Body(), nil
+	return plainTextBody(resp), nil
 }

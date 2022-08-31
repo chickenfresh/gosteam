@@ -10,6 +10,7 @@ var (
 	ErrBadCredentials  = errors.New("bad credentials")
 	ErrNoAuthenticator = errors.New("account doesn't have authenticator")
 	ErrNeedTwoFactor   = errors.New("invalid twofactor code")
+	ErrUnauthorized    = errors.New("unauthorized")
 
 	errorApiKey = errors.New("invalid apikey")
 )

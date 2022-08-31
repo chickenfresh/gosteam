@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/valyala/fasthttp"
-	"log"
 	"net/http"
 	"net/url"
 )
@@ -87,8 +86,8 @@ func (s *Session) GetProfileURL() (string, error) {
 	s.cookieClient.FillRequest(req)
 	resp := fasthttp.AcquireResponse()
 
-	if err := s.getRedirect(req, resp, 302, "GetProfileURL"); err != nil {
-		log.Panicln(err)
+	if err := s.doRequest(req, resp); err != nil {
+		return "", err
 	}
 
 	return string(resp.Header.Peek("Location")), nil
