@@ -59,7 +59,7 @@ func (s *Session) execConfirmationRequest(request, key, tag string, current int6
 	req.Header.SetMethod("GET")
 	s.cookieClient.FillRequest(req)
 	resp := fasthttp.AcquireResponse()
-	if err := s.getRedirect(req, resp, 200, "execConfirmationRequest"); err != nil {
+	if err := s.doRequest(req, resp); err != nil {
 		return nil, err
 	}
 	return resp, nil
@@ -78,7 +78,7 @@ func (s *Session) GetConfirmationsBody(identitySecret string) ([]byte, error) {
 		return nil, err
 	}
 
-	return resp.Body(), nil
+	return plainTextBody(resp), nil
 }
 
 func (s *Session) GetConfirmations(identitySecret string) ([]*Confirmation, error) {
@@ -171,5 +171,5 @@ func (s *Session) AnswerConfirmation(confirmation *Confirmation, identitySecret 
 		return nil, err
 	}
 
-	return resp.Body(), nil
+	return plainTextBody(resp), nil
 }

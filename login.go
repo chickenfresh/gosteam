@@ -63,7 +63,7 @@ func (s *Session) generateRSAkey(username string) (*LoginResponse, error) {
 
 	resp := fasthttp.AcquireResponse()
 
-	if err := s.getRedirect(req, resp, 200, "generateRSAkey"); err != nil {
+	if err := s.doRequest(req, resp); err != nil {
 		return nil, err
 	}
 
@@ -86,8 +86,7 @@ func (s *Session) generateLoginCookie() error {
 	req.Header.SetRequestURI(steamLogin)
 	resp := fasthttp.AcquireResponse()
 
-	// TODO: with retry && error handling
-	if err := s.getRedirect(req, resp, 200, "generateLoginCookie"); err != nil {
+	if err := s.doRequest(req, resp); err != nil {
 		return err
 	}
 
@@ -145,7 +144,7 @@ func (s *Session) loginInAccount(response *LoginResponse, accountName, password,
 
 	resp := fasthttp.AcquireResponse()
 
-	if err = s.getRedirect(req, resp, 200, "loginInAccount"); err != nil {
+	if err := s.doRequest(req, resp); err != nil {
 		return err
 	}
 
