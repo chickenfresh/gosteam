@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/valyala/fasthttp"
 	"io/ioutil"
+	"net/http"
 	"net/url"
 	"regexp"
 	"strconv"
@@ -205,6 +206,9 @@ func (s *Session) GetTradeOffers(options ...GetTradeOffersOption) ([]byte, int, 
 	resp := fasthttp.AcquireResponse()
 
 	if err := s.doRequest(req, resp); err != nil {
+		if resp.StatusCode() == http.StatusForbidden {
+			return nil, resp.StatusCode(), ErrAccessDenied
+		}
 		return nil, -1, wrappedError("GetTradeOffers | s.doRequest(req, resp)", err)
 	}
 	//if resp.StatusCode() == http.StatusForbidden {
