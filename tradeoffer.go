@@ -187,13 +187,13 @@ func (s *Session) GetTradeOffer(id uint64) ([]byte, error) {
 	return plainTextBody(resp), nil
 }
 
-func (s *Session) GetTradeOffers(options ...GetTradeOffersOption) ([]byte, error) {
+func (s *Session) GetTradeOffers(options ...GetTradeOffersOption) ([]byte, int, error) {
 	data := url.Values{}
 
 	if s.apiKey != "" {
 		data.Set("key", s.apiKey)
 	} else {
-		return nil, errorApiKey
+		return nil, -1, errorApiKey
 	}
 	for _, option := range options {
 		data.Set(option.Key, option.Value)
@@ -205,7 +205,7 @@ func (s *Session) GetTradeOffers(options ...GetTradeOffersOption) ([]byte, error
 	resp := fasthttp.AcquireResponse()
 
 	if err := s.doRequest(req, resp); err != nil {
-		return nil, wrappedError("GetTradeOffers | s.doRequest(req, resp)", err)
+		return nil, -1, wrappedError("GetTradeOffers | s.doRequest(req, resp)", err)
 	}
 	//if resp.StatusCode() == http.StatusForbidden {
 	//	return nil, ErrAccessDenied
@@ -215,7 +215,7 @@ func (s *Session) GetTradeOffers(options ...GetTradeOffersOption) ([]byte, error
 	//	return nil, err
 	//}
 	//return response.Inner, nil
-	return plainTextBody(resp), nil
+	return plainTextBody(resp), resp.StatusCode(), nil
 }
 
 func (s *Session) GetMyTradeToken() (string, error) {
