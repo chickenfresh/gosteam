@@ -159,7 +159,7 @@ func (s *Session) GetTradeStatus(id int) ([]byte, error) {
 	return plainTextBody(resp), nil
 }
 
-func (s *Session) GetTradeOffer(id uint64) ([]byte, error) {
+func (s *Session) GetTradeOffer(id uint64) ([]byte, int, error) {
 	data := url.Values{
 		"key":          {s.apiKey},
 		"tradeofferid": {strconv.FormatUint(id, 10)},
@@ -172,7 +172,10 @@ func (s *Session) GetTradeOffer(id uint64) ([]byte, error) {
 	resp := fasthttp.AcquireResponse()
 
 	if err := s.doRequest(req, resp); err != nil {
-		return nil, wrappedError("GetTradeOffer | s.doRequest(req, resp)", err)
+		if resp.StatusCode() == http.StatusForbidden {
+			return nil, resp.StatusCode(), ErrAccessDenied
+		}
+		return nil, resp.StatusCode(), wrappedError("GetTradeOffer | s.doRequest(req, resp)", err)
 	}
 
 	//if resp.StatusCode() != 200 {
@@ -185,7 +188,7 @@ func (s *Session) GetTradeOffer(id uint64) ([]byte, error) {
 	//}
 	//
 	//return response.Inner.Offer, nil
-	return plainTextBody(resp), nil
+	return plainTextBody(resp), resp.StatusCode(), nil
 }
 
 func (s *Session) GetTradeOffers(options ...GetTradeOffersOption) ([]byte, int, error) {
@@ -209,7 +212,7 @@ func (s *Session) GetTradeOffers(options ...GetTradeOffersOption) ([]byte, int, 
 		if resp.StatusCode() == http.StatusForbidden {
 			return nil, resp.StatusCode(), ErrAccessDenied
 		}
-		return nil, -1, wrappedError("GetTradeOffers | s.doRequest(req, resp)", err)
+		return nil, resp.StatusCode(), wrappedError("GetTradeOffers | s.doRequest(req, resp)", err)
 	}
 	//if resp.StatusCode() == http.StatusForbidden {
 	//	return nil, ErrAccessDenied
